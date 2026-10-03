@@ -1,9 +1,13 @@
 'use client'
 
 import { Columns2, Eye, PencilLine } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { ViewMode } from '@/lib/prefs'
 import { cn } from '@/lib/utils'
 
-export type ViewMode = 'edit' | 'split' | 'preview'
+// Re-exported so existing imports from this module keep working; the type lives
+// in lib/prefs because it is persisted.
+export type { ViewMode }
 
 const OPTIONS = [
   { value: 'edit', label: 'Edit', icon: PencilLine },
@@ -12,34 +16,44 @@ const OPTIONS = [
 ] as const
 
 type ViewModeToggleProps = {
+  /**
+   * The mode actually in effect. Callers below the `md` breakpoint pass `edit`
+   * rather than `split`, so the pressed state and the styling cannot disagree —
+   * the previous version faked the active style in CSS and left `aria-pressed`
+   * reporting false.
+   */
   value: ViewMode
   onChange: (value: ViewMode) => void
+  /** Hides the split option where there is no room for two panes. */
+  canSplit: boolean
 }
 
-export function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
+export function ViewModeToggle({ value, onChange, canSplit }: ViewModeToggleProps) {
   return (
-    <div role="group" aria-label="View mode" className="flex items-center rounded-lg bg-muted p-0.5">
+    <div
+      role="group"
+      aria-label="View mode"
+      className="flex shrink-0 items-center rounded-lg bg-muted p-0.5"
+    >
       {OPTIONS.map(({ value: option, label, icon: Icon }) => {
+        if (option === 'split' && !canSplit) return null
         const isActive = value === option
-        // Split view is desktop-only; on mobile it falls back to the editor.
-        const isMobileFallback = option === 'edit' && value === 'split'
         return (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onChange(option)}
-            aria-pressed={isActive}
-            title={label}
-            className={cn(
-              'flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none',
-              isActive && 'bg-background text-foreground shadow-sm',
-              isMobileFallback && 'max-md:bg-background max-md:text-foreground max-md:shadow-sm',
-              option === 'split' && 'hidden md:flex',
-            )}
-          >
-            <Icon className="size-3.5" aria-hidden />
-            <span className="hidden lg:inline">{label}</span>
-          </button>
+          <Tooltip key={option}>
+            <TooltipTrigger
+              type="button"
+              onClick={() => onChange(option)}
+              aria-pressed={isActive}
+              className={cn(
+                'flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none',
+                isActive && 'bg-background text-foreground shadow-sm',
+              )}
+            >
+              <Icon className="size-3.5" aria-hidden />
+              <span className="hidden lg:inline">{label}</span>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>
         )
       })}
     </div>

@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { ServiceWorker } from '@/components/service-worker'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
@@ -9,8 +10,10 @@ const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono'
 
 export const metadata: Metadata = {
   title: 'Margin — Markdown Notes',
-  description: 'A fast, minimal markdown note-taking app with live preview and auto-save.',
-  generator: 'v0.app',
+  description:
+    'A local-first markdown workspace with live preview, syntax highlighting, diagrams, math, and sharing that never touches a server.',
+  applicationName: 'Margin',
+  appleWebApp: { capable: true, title: 'Margin', statusBarStyle: 'default' },
   icons: {
     icon: [
       {
@@ -51,6 +54,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
+        <ServiceWorker />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
