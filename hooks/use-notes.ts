@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createNote, loadNotes, saveNotes, type Note } from '@/lib/notes'
+import { loadPrefs, savePrefs } from '@/lib/prefs'
 
 const SAVE_DELAY_MS = 600
 
-export type SaveStatus = 'saved' | 'saving'
+export type SaveStatus = 'saved' | 'saving' | 'error'
 
 export function useNotes() {
   const [notes, setNotes] = useState<Note[]>(loadNotes)
   const [activeId, setActiveId] = useState<string | null>(() => {
+    // Reopen whatever was last open, falling back to the most recent note.
+    const stored = loadPrefs().activeId
+    if (stored !== null && notes.some((note) => note.id === stored)) return stored
     const [first] = [...notes].sort((a, b) => b.updatedAt - a.updatedAt)
     return first?.id ?? null
   })
@@ -25,8 +29,9 @@ export function useNotes() {
     }
     setSaveStatus('saving')
     const timeout = window.setTimeout(() => {
-      saveNotes(notes)
-      setSaveStatus('saved')
+      // saveNotes reports quota and private-mode failures instead of swallowing
+      // them, so a failed write never shows up as "Saved".
+      setSaveStatus(saveNotes(notes) ? 'saved' : 'error')
     }, SAVE_DELAY_MS)
     return () => window.clearTimeout(timeout)
   }, [notes])
@@ -37,6 +42,10 @@ export function useNotes() {
     window.addEventListener('pagehide', flush)
     return () => window.removeEventListener('pagehide', flush)
   }, [])
+
+  useEffect(() => {
+    savePrefs({ activeId })
+  }, [activeId])
 
   const sortedNotes = useMemo(
     () => [...notes].sort((a, b) => b.updatedAt - a.updatedAt),
@@ -53,6 +62,17 @@ export function useNotes() {
     setNotes((prev) => [note, ...prev])
     setActiveId(note.id)
     return note
+  }, [])
+
+  /** Add imported notes, re-issuing ids so re-importing a backup cannot collide. */
+  const addNotes = useCallback((incoming: Note[]) => {
+    if (incoming.length === 0) return
+    const taken = new Set(latestNotes.current.map((note) => note.id))
+    const fresh = incoming.map((note) =>
+      taken.has(note.id) ? { ...note, id: createNote().id } : note,
+    )
+    setNotes((prev) => [...fresh, ...prev])
+    setActiveId(fresh[0].id)
   }, [])
 
   const updateNote = useCallback(
@@ -81,6 +101,7 @@ export function useNotes() {
     activeId,
     setActiveId,
     addNote,
+    addNotes,
     updateNote,
     deleteNote,
     saveStatus,

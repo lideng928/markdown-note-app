@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+/* KaTeX ships its own stylesheet, so math renders in the preview. */
+@import 'katex/dist/katex.min.css';
 @plugin '@tailwindcss/typography';
 
 @custom-variant dark (&:is(.dark *));
@@ -162,5 +164,86 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* --- Shiki ----------------------------------------------------------------- */
+/* Code is highlighted once with both themes emitted as CSS variables, so a
+   light/dark switch is a pure CSS swap with no re-highlighting and no flash. */
+@layer components {
+  .shiki-host pre.shiki {
+    margin: 0;
+    padding: 1.75rem 1rem 1rem;
+    background-color: var(--shiki-light-bg) !important;
+    color: var(--shiki-light);
+    overflow-x: auto;
+    line-height: 1.625;
+  }
+  .shiki-host pre.shiki span {
+    color: var(--shiki-light);
+  }
+  .dark .shiki-host pre.shiki {
+    background-color: var(--shiki-dark-bg) !important;
+    color: var(--shiki-dark);
+  }
+  .dark .shiki-host pre.shiki span {
+    color: var(--shiki-dark);
+  }
+
+  /* Task lists become interactive, so give the checkbox a real hit target. */
+  .prose li.task-list-item {
+    list-style: none;
+    padding-left: 0;
+  }
+  .prose li.task-list-item > input[type='checkbox'] {
+    margin-right: 0.5rem;
+    width: 1rem;
+    height: 1rem;
+    vertical-align: -0.125rem;
+  }
+
+  /* KaTeX display blocks scroll instead of overflowing the pane. */
+  .prose .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-block: 0.25rem;
+  }
+}
+
+/* --- Print ----------------------------------------------------------------- */
+/* Printing (and "Save as PDF") renders only the note, full width. */
+@media print {
+  [data-print='hide'] {
+    display: none !important;
+  }
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  [data-print='surface'] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  [data-print='surface'] .prose {
+    max-width: none !important;
+  }
+  .shiki-host pre.shiki,
+  .shiki-host pre.shiki span {
+    background-color: transparent !important;
+    color: #000 !important;
+  }
+  [data-print='surface'] pre,
+  [data-print='surface'] .not-prose {
+    border-color: #ddd !important;
+    background: transparent !important;
+  }
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.75em;
+    color: #555;
   }
 }

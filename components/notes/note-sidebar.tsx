@@ -18,6 +18,12 @@ type NoteSidebarProps = {
   onCreate: () => void
   isOpen: boolean
   onClose: () => void
+  /**
+   * Takes the drawer out of the tab order while it is translated off-screen.
+   * Without it, a phone user tabbing through the page lands on six invisible
+   * controls.
+   */
+  isInert: boolean
 }
 
 export function NoteSidebar({
@@ -30,6 +36,7 @@ export function NoteSidebar({
   onCreate,
   isOpen,
   onClose,
+  isInert,
 }: NoteSidebarProps) {
   return (
     <>
@@ -44,6 +51,8 @@ export function NoteSidebar({
       <aside
         id="notes-sidebar"
         aria-label="Notes"
+        inert={isInert}
+        data-print="hide"
         className={cn(
           'fixed inset-y-0 left-0 z-40 flex w-80 max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-out md:static md:z-auto md:w-72 md:max-w-none md:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full',

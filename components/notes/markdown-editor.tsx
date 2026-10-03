@@ -2,9 +2,10 @@
 
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { CircleHelp } from 'lucide-react'
+import { indentSelection, minimalReplace, outdentSelection } from '@/lib/markdown-edit'
+import { countTasks } from '@/lib/markdown-tasks'
 import { MarkdownHints } from './markdown-hints'
 
-const INDENT = '  '
 const HINTS_ID = 'markdown-hints'
 
 type MarkdownEditorProps = {
@@ -16,6 +17,34 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [showHints, setShowHints] = useState(false)
   const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0
+  const tasks = countTasks(value)
+
+  /**
+   * Apply an edit through `execCommand('insertText')` when the browser allows it,
+   * so Ctrl+Z still undoes it. Rewriting the controlled value directly — what the
+   * old Tab handler did — wipes the textarea's native undo history.
+   */
+  function applyEdit(next: { value: string; start: number; end: number }) {
+    const textarea = textareaRef.current
+    if (next.value === value || !textarea) return
+
+    const { from, to, text } = minimalReplace(value, next.value)
+    textarea.setSelectionRange(from, to)
+
+    let handled = false
+    try {
+      handled = text
+        ? document.execCommand('insertText', false, text)
+        : document.execCommand('delete')
+    } catch {
+      handled = false
+    }
+
+    // execCommand is deprecated and can be unavailable; the edit still has to land.
+    if (!handled) onChange(next.value)
+
+    requestAnimationFrame(() => textarea.setSelectionRange(next.start, next.end))
+  }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === '/' && (event.metaKey || event.ctrlKey)) {
@@ -27,14 +56,12 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
       setShowHints(false)
       return
     }
-    if (event.key !== 'Tab' || event.shiftKey || event.metaKey || event.ctrlKey) return
+    if (event.key !== 'Tab' || event.metaKey || event.ctrlKey || event.altKey) return
+
     event.preventDefault()
     const { selectionStart, selectionEnd } = event.currentTarget
-    onChange(value.slice(0, selectionStart) + INDENT + value.slice(selectionEnd))
-    requestAnimationFrame(() => {
-      const cursor = selectionStart + INDENT.length
-      textareaRef.current?.setSelectionRange(cursor, cursor)
-    })
+    const selection = { value, start: selectionStart, end: selectionEnd }
+    applyEdit(event.shiftKey ? outdentSelection(selection) : indentSelection(selection))
   }
 
   return (
@@ -50,7 +77,8 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
         onKeyDown={handleKeyDown}
         placeholder="Start writing in markdown…"
         spellCheck
-        className="min-h-0 flex-1 resize-none bg-transparent px-4 py-5 font-mono text-sm leading-7 outline-none placeholder:text-muted-foreground/70 md:px-8"
+        /* text-base below md: iOS Safari auto-zooms on focus under 16px. */
+        className="min-h-0 flex-1 resize-none bg-transparent px-4 py-5 font-mono text-base leading-7 outline-none placeholder:text-muted-foreground/70 md:px-8 md:text-sm"
       />
       {showHints && <MarkdownHints id={HINTS_ID} onClose={() => setShowHints(false)} />}
       <div className="flex items-center justify-between border-t px-4 py-1.5 text-xs text-muted-foreground md:px-8">
@@ -66,6 +94,11 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
           Markdown help
         </button>
         <span className="tabular-nums">
+          {tasks.total > 0 && (
+            <>
+              {tasks.done}/{tasks.total} done{' · '}
+            </>
+          )}
           {wordCount} {wordCount === 1 ? 'word' : 'words'} · {value.length} chars
         </span>
       </div>

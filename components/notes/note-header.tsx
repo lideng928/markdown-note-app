@@ -1,9 +1,12 @@
 'use client'
 
-import { Check, Loader2, Menu, Trash2 } from 'lucide-react'
+import { AlertTriangle, Check, Loader2, Menu, Share2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { SaveStatus } from '@/hooks/use-notes'
-import { ViewModeToggle, type ViewMode } from './view-mode-toggle'
+import type { Note } from '@/lib/notes'
+import type { ViewMode } from '@/lib/prefs'
+import { NotesMenu } from './notes-menu'
+import { ViewModeToggle } from './view-mode-toggle'
 
 type NoteHeaderProps = {
   title: string
@@ -11,9 +14,17 @@ type NoteHeaderProps = {
   saveStatus: SaveStatus
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
+  /** False below the `md` breakpoint, where there is no room for two panes. */
+  canSplit: boolean
   onDelete: () => void
+  onShare: () => void
   onOpenSidebar: () => void
   isSidebarOpen: boolean
+  menuButtonRef?: React.Ref<HTMLButtonElement>
+  note: Note
+  notes: Note[]
+  onImport: (notes: Note[]) => void
+  onError: (message: string) => void
 }
 
 export function NoteHeader({
@@ -22,13 +33,24 @@ export function NoteHeader({
   saveStatus,
   viewMode,
   onViewModeChange,
+  canSplit,
   onDelete,
+  onShare,
   onOpenSidebar,
   isSidebarOpen,
+  menuButtonRef,
+  note,
+  notes,
+  onImport,
+  onError,
 }: NoteHeaderProps) {
   return (
-    <header className="flex items-center gap-2 border-b px-3 py-2 md:px-4">
+    <header
+      data-print="hide"
+      className="flex items-center gap-1 border-b px-2 py-2 md:gap-2 md:px-4"
+    >
       <Button
+        ref={menuButtonRef}
         variant="ghost"
         size="icon"
         onClick={onOpenSidebar}
@@ -40,6 +62,7 @@ export function NoteHeader({
         <Menu aria-hidden />
       </Button>
 
+      <h1 className="sr-only">{title.trim() || 'Untitled note'}</h1>
       <label htmlFor="note-title" className="sr-only">
         Note title
       </label>
@@ -52,25 +75,39 @@ export function NoteHeader({
         className="min-w-0 flex-1 bg-transparent text-base font-semibold tracking-tight outline-none placeholder:text-muted-foreground/70 md:text-lg"
       />
 
+      {/*
+        Visual only. A live region here would re-announce on every pause in typing,
+        so the polite region below speaks only for the state worth interrupting for.
+      */}
       <p
-        className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex"
-        role="status"
-        aria-live="polite"
+        aria-hidden
+        className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+        data-status={saveStatus}
       >
-        {saveStatus === 'saving' ? (
-          <>
-            <Loader2 className="size-3 animate-spin" aria-hidden />
-            Saving
-          </>
-        ) : (
-          <>
-            <Check className="size-3" aria-hidden />
-            Saved
-          </>
-        )}
+        {saveStatus === 'saving' && <Loader2 className="size-3 animate-spin" />}
+        {saveStatus === 'saved' && <Check className="size-3" />}
+        {saveStatus === 'error' && <AlertTriangle className="size-3 text-destructive" />}
+        <span className="hidden sm:inline">
+          {saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Not saved'}
+        </span>
+      </p>
+      <p role="status" aria-live="polite" className="sr-only">
+        {saveStatus === 'error' ? 'Changes could not be saved. Your browser storage may be full.' : ''}
       </p>
 
-      <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onShare}
+        className="text-muted-foreground hover:text-foreground"
+        aria-label="Share note"
+      >
+        <Share2 aria-hidden />
+      </Button>
+
+      <ViewModeToggle value={viewMode} onChange={onViewModeChange} canSplit={canSplit} />
+
+      <NotesMenu note={note} notes={notes} onImport={onImport} onError={onError} />
 
       <Button
         variant="ghost"
@@ -78,7 +115,6 @@ export function NoteHeader({
         onClick={onDelete}
         className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         aria-label="Delete note"
-        title="Delete note"
       >
         <Trash2 aria-hidden />
       </Button>
