@@ -152,3 +152,21 @@ test.describe('on a phone', () => {
     await expect(page.getByPlaceholder('Search notes')).toBeVisible()
   })
 })
+
+test('does not persist the welcome note until you actually write something', async ({ page }) => {
+  const stored = () => page.evaluate(() => localStorage.getItem('markdown-notes:v1'))
+
+  // Reloading fires pagehide, which used to flush the seeded note to storage —
+  // freezing it, so later releases could never ship an updated welcome note.
+  await page.reload()
+  await expect(editor(page)).toHaveValue(/Welcome to Margin/, { timeout: 30_000 })
+  expect(await stored()).toBeNull()
+
+  // Editing makes it the reader's own note, and from then on it persists.
+  await editor(page).fill('now it is mine')
+  await expect(saveStatus(page)).toHaveAttribute('data-status', 'saved', { timeout: 10_000 })
+  expect(await stored()).toContain('now it is mine')
+
+  await page.reload()
+  await expect(editor(page)).toHaveValue('now it is mine', { timeout: 30_000 })
+})

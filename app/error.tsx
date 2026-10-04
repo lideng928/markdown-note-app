@@ -26,7 +26,7 @@ export default function Error({ error, reset }: { error: Error; reset: () => voi
             tree that just crashed. A full document load is the point.
           */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <Button variant="outline" render={<a href="/" />}>
+          <Button variant="outline" nativeButton={false} render={<a href="/" />}>
             Reload Margin
           </Button>
         </div>
