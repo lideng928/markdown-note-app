@@ -164,7 +164,7 @@ function Fallback({ heading, body }: { heading: string; body: string }) {
     <div className="mx-auto mt-20 max-w-sm px-6 text-center">
       <h1 className="text-lg font-semibold tracking-tight">{heading}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{body}</p>
-      <Button className="mt-5" render={<Link href="/" />}>
+      <Button className="mt-5" nativeButton={false} render={<Link href="/" />}>
         Open Margin
         <ArrowRight data-icon="inline-end" aria-hidden />
       </Button>

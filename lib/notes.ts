@@ -98,6 +98,23 @@ export function welcomeNote() {
   return createNote({ title: 'Welcome to Margin', content: WELCOME_CONTENT })
 }
 
+/**
+ * Whether this browser holds notes of its own.
+ *
+ * False means the list `loadNotes` hands back is the seeded welcome note rather
+ * than anything the reader wrote. That note is deliberately left unsaved until
+ * they change something: persisting it on the first visit would freeze it in
+ * storage, and every later release would still show the original copy — storage
+ * is only ever seeded when the key is absent.
+ */
+export function hasStoredNotes(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 export function loadNotes(): Note[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)

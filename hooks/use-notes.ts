@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createNote, loadNotes, saveNotes, type Note } from '@/lib/notes'
+import { createNote, hasStoredNotes, loadNotes, saveNotes, type Note } from '@/lib/notes'
 import { loadPrefs, savePrefs } from '@/lib/prefs'
 
 const SAVE_DELAY_MS = 600
@@ -19,14 +19,27 @@ export function useNotes() {
   })
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const latestNotes = useRef(notes)
-  const hasMounted = useRef(false)
+  /**
+   * The array `loadNotes` returned. Every setter replaces it, so an identity
+   * check tells us whether anything has actually changed — unlike a "has
+   * mounted" counter, which React's StrictMode defeats by invoking effects
+   * twice (it is on by default for the App Router).
+   */
+  const initialNotes = useRef(notes)
+  /**
+   * Whether there is anything worth writing: notes this browser already had, or
+   * a change the reader has since made. While it is false the list is just the
+   * seeded welcome note, which is deliberately left unsaved — persisting it
+   * would freeze it, and storage is only ever seeded when the key is absent, so
+   * every later release would still show that first copy.
+   */
+  const hasOwnNotes = useRef(hasStoredNotes())
 
   useEffect(() => {
     latestNotes.current = notes
-    if (!hasMounted.current) {
-      hasMounted.current = true
-      return
-    }
+    if (notes === initialNotes.current) return
+    // The list has genuinely changed, so it is the reader's own from here on.
+    hasOwnNotes.current = true
     setSaveStatus('saving')
     const timeout = window.setTimeout(() => {
       // saveNotes reports quota and private-mode failures instead of swallowing
@@ -38,7 +51,12 @@ export function useNotes() {
 
   // Flush any pending debounced save if the tab closes mid-typing.
   useEffect(() => {
-    const flush = () => saveNotes(latestNotes.current)
+    const flush = () => {
+      // Leaving the page is not authorship: without this guard, opening the app
+      // once and closing the tab was enough to freeze the welcome note forever.
+      if (!hasOwnNotes.current) return
+      saveNotes(latestNotes.current)
+    }
     window.addEventListener('pagehide', flush)
     return () => window.removeEventListener('pagehide', flush)
   }, [])

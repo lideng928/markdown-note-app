@@ -4,6 +4,7 @@ import {
   createNote,
   getNoteExcerpt,
   getNoteTitle,
+  hasStoredNotes,
   isNote,
   loadNotes,
   saveNotes,
@@ -129,6 +130,28 @@ describe('loadNotes', () => {
     const map = stubStorage()
     map.set(STORAGE_KEY, '[]')
     expect(loadNotes()).toEqual([])
+  })
+})
+
+describe('hasStoredNotes', () => {
+  it('is false on a first visit, so the welcome note counts as a seed', () => {
+    stubStorage()
+    expect(hasStoredNotes()).toBe(false)
+  })
+
+  it('is true once anything has been written', () => {
+    const map = stubStorage()
+    map.set(STORAGE_KEY, '[]')
+    expect(hasStoredNotes()).toBe(true)
+  })
+
+  it('is false when storage cannot be read at all', () => {
+    vi.stubGlobal('window', {
+      get localStorage(): never {
+        throw new Error('blocked')
+      },
+    })
+    expect(hasStoredNotes()).toBe(false)
   })
 })
 
